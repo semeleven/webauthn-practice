@@ -1,0 +1,39 @@
+{
+  "name": "web-authn-evolution",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build:client:watch": "snowpack build --watch",
+    "build:client": "snowpack build",
+    "build": "npm run build:client",
+    "start:server": "nodemon ./server/server.mjs",
+    "start": "npm run build:client:watch & nodemon ./server/server.mjs"
+  },
+  "author": "sem_eleven",
+  "license": "ISC",
+  "dependencies": {
+    "@simplewebauthn/server": "^4.2.0",
+    "@zxing/library": "^0.18.3",
+    "base64url": "^3.0.1",
+    "bcrypt": "^5.0.1",
+    "compression": "^1.7.4",
+    "ejs": "^3.1.5",
+    "express": "^4.17.1",
+    "express-session": "^1.17.1",
+    "nanoid": "^3.1.16",
+    "otplib": "^12.0.1",
+    "passport": "^0.5.0",
+    "passport-local": "^1.0.0",
+    "qrcode": "^1.4.4",
+    "tailwindcss": "^2.0.1"
+  },
+  "devDependencies": {
+    "@snowpack/plugin-postcss": "^1.4.3",
+    "autoprefixer": "^10.0.2",
+    "cssnano": "^5.0.6",
+    "nodemon": "^2.0.6",
+    "postcss": "^8.1.7",
+    "snowpack": "^3.5.8"
+  }
+}

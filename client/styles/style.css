@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Input */
+.input {
+  @apply appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 text-gray-900;
+}
+.input::placeholder {
+  @apply text-gray-500;
+}
+.input:focus {
+  @apply border-blue-300 z-10 outline-none;
+}
+
+.input-group {
+  @apply -mt-px;
+}
+
+.input-group:first-child {
+  @apply mt-0;
+}
+.input-group:first-child .input {
+  @apply rounded-t-md;
+}
+
+.input-group:last-child .input {
+  @apply rounded-b-md;
+}
+
+@screen sm {
+  .input {
+    @apply text-sm leading-5;
+  }
+}
+
+/* Buttons */
+.btn {
+  @apply flex justify-center py-2 px-4 border border-transparent text-sm leading-5 font-medium rounded-md  transition duration-150 ease-in-out;
+}
+
+.btn-primary {
+  @apply text-white bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500;
+}
+.btn-primary:hover {
+  @apply bg-indigo-500;
+}
+.btn-primary:active {
+  @apply bg-indigo-700;
+}
+
+.btn-secondary {
+  @apply text-black text-gray-500;
+}
+.btn-secondary:hover {
+  @apply text-gray-900;
+}
+.btn-secondary:focus {
+  @apply outline-none text-gray-900;
+}
+
+.btn[disabled] {
+  @apply bg-gray-300;
+}
+
+.card {
+  @apply relative;
+}
+.card:after {
+  content: "";
+  display: block;
+  padding-bottom: 100%;
+}
+
+.card img {
+  @apply absolute w-full h-full object-cover;
+}
