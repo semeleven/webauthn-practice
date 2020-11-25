@@ -1,0 +1,33 @@
+{
+  "name": "web-authn-evolution",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build:client:watch": "snowpack build --watch",
+    "build:client": "snowpack build",
+    "build:style:watch": "NODE_ENV=production postcss ./client/styles/style.css -o ./build/style.css --watch",
+    "build:style": "NODE_ENV=production postcss ./client/styles/style.css -o ./build/style.css",
+    "build": "npm run build:client && npm run build:style", 
+    "start:server": "nodemon ./server/server.mjs",
+    "start": "npm run build:client:watch & npm run build:style:watch & nodemon ./server/server.mjs"
+  },
+  "author": "sem_eleven",
+  "license": "ISC",
+  "dependencies": {
+    "compression": "^1.7.4",
+    "ejs": "^3.1.5",
+    "express": "^4.17.1",
+    "lowdb": "^1.0.0",
+    "nanoid": "^3.1.16",
+    "tailwindcss": "^2.0.1"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.0.2",
+    "cssnano": "^4.1.10",
+    "nodemon": "^2.0.6",
+    "postcss": "^8.1.7",
+    "postcss-cli": "^8.3.0",
+    "snowpack": "^2.17.1"
+  }
+}
