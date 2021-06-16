@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PetsGramm - Sign up</title>
+    <link href="/style.css" rel="stylesheet" />
+  </head>
+  <body>
+    <div
+      class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8"
+    >
+      <div class="max-w-md w-full">
+        <div>
+          <div class="text-center">
+            <a href="/" class="text-2xl" style="font-family: 'Comic Sans MS'">
+              PetsGramm
+            </a>
+          </div>
+          <h2
+            class="mt-6 text-center text-3xl leading-9 font-extrabold text-gray-900"
+          >
+            Sign up
+          </h2>
+        </div>
+        <form class="mt-8" action="/signup" method="POST">
+          <div class="rounded-md shadow-sm">
+            <div class="input-group">
+              <input
+                aria-label="Name"
+                name="name"
+                type="text"
+                required
+                class="input"
+                placeholder="Name"
+              />
+            </div>
+            <div class="input-group">
+              <input
+                aria-label="Email address"
+                name="email"
+                type="email"
+                required
+                class="input"
+                placeholder="Email address"
+              />
+            </div>
+            <div class="input-group">
+              <input
+                aria-label="Password"
+                name="password"
+                type="text"
+                required
+                aria-autocomplete="list"
+                class="input"
+                placeholder="Password"
+              />
+            </div>
+          </div>
+          <div class="mt-6">
+            <button type="submit" class="w-full btn btn-primary">
+              Sign up
+            </button>
+          </div>
+          <div class="mt-6">
+            <a href="/signin" class="w-full btn btn-secondary">Sign in</a>
+          </div>
+        </form>
+      </div>
+    </div>
+    <script type="module">
+      import { xios } from "/api.js";
+
+      document.querySelector("form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const formData = new FormData(e.target);
+
+        const { success, error } = await xios("/signup", {
+          name: formData.get("name"),
+          email: formData.get("email"),
+          password: formData.get("password"),
+        });
+
+        if (success) {
+          location.href = "/";
+        } else {
+          alert(error);
+        }
+      });
+    </script>
+  </body>
+</html>
