@@ -24,11 +24,10 @@ util.inherits(Strategy, passport.Strategy);
  */
 Strategy.prototype.authenticate = function (req, options) {
   options = options || {};
-  const userId = req.session.userId;
   const optionsForCheck = req.body;
   const expectedChallenge = req.session.challenge;
 
-  if (!userId || !optionsForCheck || !expectedChallenge) {
+  if (!optionsForCheck || !expectedChallenge) {
     return this.fail(
       { message: options.badRequestMessage || "Missing credentials" },
       400
@@ -46,7 +45,7 @@ Strategy.prototype.authenticate = function (req, options) {
   };
 
   try {
-    this._verify(userId, optionsForCheck, expectedChallenge, verified);
+    this._verify(optionsForCheck, expectedChallenge, verified);
   } catch (ex) {
     return self.error(ex);
   }

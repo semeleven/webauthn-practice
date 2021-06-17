@@ -28,8 +28,12 @@
               <%= user.name %>
             </a>
             <% } else { %>
-            <a href="/signin" class="btn btn-secondary"> Sign in </a>
-            <a href="/signup" class="btn btn-primary"> Sign up </a>
+            <button type="button" class="btn btn-secondary js-signin">
+              Sign in
+            </button>
+            <button type="button" class="btn btn-primary js-signup">
+              Sign up
+            </button>
             <% } %>
           </div>
         </div>
@@ -89,4 +93,90 @@
       </div>
     </div>
   </body>
+
+  <script type="module">
+    import { xios } from "/api.js";
+    import {
+      convertCreateCredential,
+      convertCreateOptions,
+    } from "/webauthn-helpers.js";
+
+    document
+      .querySelector(".js-signup")
+      .addEventListener("click", async (e) => {
+        /*
+          {
+            ...,
+            "authenticatorSelection": {
+              ...
+              "requireResidentKey": true
+            }
+          }
+          */
+        const { options } = await xios("/signup/challenge");
+
+        let credential;
+        try {
+          credential = await navigator.credentials.create({
+            publicKey: convertCreateOptions(options),
+          });
+        } catch (e) {
+          alert("navigator.credentials.create error: " + e.message);
+          return;
+        }
+
+        const { success, error } = await xios("/signup", {
+          options: convertCreateCredential(credential),
+          nick: new Date().toString(),
+        });
+
+        if (success) {
+          location.href = "/";
+        } else {
+          alert(error || "Something wrong");
+        }
+      });
+  </script>
+
+  <script type="module">
+    import { xios } from "/api.js";
+    import {
+      convertGetOptions,
+      convertGetCredential,
+    } from "./webauthn-helpers.js";
+
+    document
+      .querySelector(".js-signin")
+      .addEventListener("click", async (e) => {
+        /*
+          {
+            ...,
+            "allowCredentials": []
+          }
+          */
+        const { options } = await xios("/signin/challenge");
+
+        let credential;
+
+        try {
+          credential = await navigator.credentials.get({
+            publicKey: convertGetOptions(options),
+          });
+        } catch (e) {
+          alert("navigator.credentials.get error: " + e.message);
+          return;
+        }
+
+        const { success, error } = await xios(
+          "/signin",
+          convertGetCredential(credential)
+        );
+
+        if (success) {
+          location.href = "/";
+        } else {
+          alert(error || "Not valid token");
+        }
+      });
+  </script>
 </html>
