@@ -88,5 +88,139 @@
         </div>
       </div>
     </div>
+
+    <div class="fixed z-10 inset-0 overflow-y-auto js-key-modal hidden">
+      <div
+        class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0"
+      >
+        <div class="fixed inset-0 transition-opacity" aria-hidden="true">
+          <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+        </div>
+        <span
+          class="hidden sm:inline-block sm:align-middle sm:h-screen"
+          aria-hidden="true"
+          >&#8203;</span
+        >
+        <div
+          class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-headline"
+        >
+          <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+            <div class="sm:flex sm:items-start">
+              <div
+                class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10"
+              >
+                <svg
+                  class="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"
+                  ></path>
+                </svg>
+              </div>
+              <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                <h3
+                  class="text-lg leading-6 font-medium text-gray-900"
+                  id="modal-headline"
+                >
+                  Activate fast sign in
+                </h3>
+                <div class="mt-2">
+                  <p class="text-sm text-gray-500">
+                    Are you sure you want to activate fast sign in? It will be
+                    fater, so faster
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex justify-between sm:flex-row-reverse"
+          >
+            <button
+              type="button"
+              class="w-full inline-flex btn btn-primary sm:w-auto sm:text-sm js-activate"
+            >
+              Activate
+            </button>
+            <button
+              type="button"
+              class="mt-3 w-full btn btn-secondary sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm js-cancel"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <% if (canAskWebAuth) { %>
+    <script type="module">
+      import { xios } from "/api.js";
+      import {
+        convertCreateCredential,
+        convertCreateOptions,
+      } from "/webauthn-helpers.js";
+
+      PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().then(
+        (result) => {
+          if (result) {
+            document.querySelector(".js-key-modal").classList.remove("hidden");
+          }
+        }
+      );
+
+      document.querySelector(".js-cancel").addEventListener("click", () => {
+        document.querySelector(".js-key-modal").classList.add("hidden");
+      });
+
+      document
+        .querySelector(".js-activate")
+        .addEventListener("click", async () => {
+          /*
+          {
+            ...,
+            "authenticatorSelection": {
+              ...
+              "authenticatorAttachment": "platform"
+            }
+          }
+          */
+          const { options } = await xios("/add-key/challenge", {
+            resign: true,
+          });
+
+          let credential;
+          try {
+            credential = await navigator.credentials.create({
+              publicKey: convertCreateOptions(options),
+            });
+          } catch (e) {
+            alert("navigator.credentials.create error: " + e.message);
+            return;
+          }
+
+          const { success, error } = await xios("/add-key/verify", {
+            options: convertCreateCredential(credential),
+            resign: true,
+          });
+
+          if (success) {
+            document.querySelector(".js-key-modal").classList.add("hidden");
+            alert("Done!");
+          } else {
+            alert(error || "Something wrong");
+          }
+        });
+    </script>
+    <% } %>
   </body>
 </html>

@@ -54,60 +54,10 @@
 
         const formData = new FormData(e.target);
 
-        /*
-          {
-            "challenge": ArrayBuffer,
-            "rp": {
-              "name": "Petsgramm",
-              "id": "8ccec5916742.ngrok.io",
-              ...
-            },
-            "user": {
-              "id": ArrayBuffer,
-              "name": "Sam"
-              ...
-            },
-            "pubKeyCredParams": [
-              {
-                "alg": -7,
-                "type": "public-key"
-              },
-              ...
-            ],
-            "attestation": "none" | "indirect" | "direct",
-            "excludeCredentials": [
-              {
-                "id": ArrayBuffer,
-                "type": "public-key"
-              }
-            ],
-            "authenticatorSelection": {
-              "userVerification": "discouraged" | "preferred" | "required",
-              "requireResidentKey": Boolean,
-              "authenticatorAttachment": "platform" | "cross-platform"
-            }
-        }
-        */
-        // Server: "Please create credentials"
         const { options } = await xios("/add-key/challenge");
 
         let credential;
         try {
-          /*
-          {
-            id: String
-            rawId: ArrayBuffer
-            response: {
-              attestationObject: ArrayBuffer (CBOR)
-              clientDataJSON: ArrayBuffer
-              signature: ArrayBuffer or empty string
-              userHandle: ArrayBuffer or null
-              type: "public-key"
-            }
-          }
-          */
-          // Browser: "Authenticator, public key please?"
-          // Authenticator: "Sure, here you go."
           credential = await navigator.credentials.create({
             publicKey: convertCreateOptions(options),
           });
@@ -116,8 +66,6 @@
           return;
         }
 
-        // Browser: "Here, server, public key + signature"
-        // Server verifies & stores the public key
         const { success, error } = await xios("/add-key/verify", {
           options: convertCreateCredential(credential),
           nick: formData.get("nick"),
