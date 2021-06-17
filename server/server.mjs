@@ -10,6 +10,7 @@ import {
   verifyRegistrationResponse,
 } from "@simplewebauthn/server";
 import base64url from "base64url";
+import qrcode from "qrcode";
 
 import { Users } from "./db/users.mjs";
 import initializePassport from "./passport-config.mjs";
@@ -86,8 +87,49 @@ app.get("/later", checkAuthenticated, (req, res) => {
   res.render("later.ejs");
 });
 
-app.get("/signin", checkNotAuthenticated, (req, res) => {
-  res.render("signin.ejs");
+const tokens = new Map();
+app.get("/signin-qr", checkNotAuthenticated, async (req, res) => {
+  if (req.session.signInToken) {
+    tokens.delete(req.session.signInToken);
+  }
+
+  req.session.signInToken = nanoid();
+
+  console.log(req.session.signInToken);
+
+  tokens.set(req.session.signInToken, null);
+
+  const qr = await qrcode.toString(req.session.signInToken, { type: "svg" });
+
+  res.render("signin-qr.ejs", { qr });
+});
+
+app.post("/qrcode-check", checkNotAuthenticated, async (req, res) => {
+  const userId = tokens.get(req.session.signInToken);
+
+  if (userId) {
+    tokens.delete(req.session.signInToken);
+    await login(req, users.getById(userId));
+  }
+
+  res.json({
+    success: Boolean(userId),
+  });
+});
+
+app.post("/qrcode-signin", checkAuthenticated, async (req, res) => {
+  if (tokens.get(req.body.code) !== null) {
+    return res.json({
+      success: false,
+      error: "Code not found",
+    });
+  }
+
+  tokens.set(req.body.code, req.user.id);
+
+  res.json({
+    success: true,
+  });
 });
 
 app.get("/signup", checkNotAuthenticated, (req, res) => {
@@ -302,7 +344,7 @@ app.post("/signin", checkNotAuthenticated, function (req, res, next) {
 
 app.post("/logout", (req, res) => {
   req.logOut();
-  res.redirect("/signin");
+  res.redirect("/");
 });
 
 function checkAuthenticated(req, res, next) {
@@ -310,7 +352,7 @@ function checkAuthenticated(req, res, next) {
     return next();
   }
 
-  res.redirect("/signin");
+  res.redirect("/");
 }
 
 function checkNotAuthenticated(req, res, next) {
