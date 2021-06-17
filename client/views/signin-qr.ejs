@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PetsGramm - Sign in</title>
+    <link href="/style.css" rel="stylesheet" />
+  </head>
+  <body>
+    <div
+      class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8"
+    >
+      <div class="max-w-md w-full">
+        <div>
+          <div class="text-center">
+            <a href="/" class="text-2xl" style="font-family: 'Comic Sans MS'">
+              PetsGramm
+            </a>
+          </div>
+          <h2
+            class="mt-6 text-center text-3xl leading-9 font-extrabold text-gray-900"
+          >
+            Sign in by QR code
+          </h2>
+        </div>
+        <div class="mt-2"><%- qr %></div>
+        <ul class="mt-2">
+          <li>1. Scan QR Code in the singed-in device</li>
+          <li>2. Profit!</li>
+        </ul>
+      </div>
+    </div>
+    <script type="module">
+      import { xios } from "/api.js";
+
+      async function check() {
+        while (true) {
+          await new Promise((ok) => setTimeout(ok, 4000));
+          const { success } = await xios("/qrcode-check");
+
+          if (success) {
+            location.href = "/";
+            return;
+          }
+        }
+      }
+
+      check();
+    </script>
+  </body>
+</html>

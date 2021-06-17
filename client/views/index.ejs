@@ -21,6 +21,9 @@
           </div>
           <div class="flex items-center justify-end space-x-8">
             <% if (user) { %>
+            <button type="button" class="btn btn-secondary js-qrsignin">
+              QR sign in
+            </button>
             <a
               href="/profile"
               class="whitespace-no-wrap text-base leading-6 font-medium text-gray-500 hover:text-gray-900 focus:outline-none focus:text-gray-900"
@@ -28,6 +31,24 @@
               <%= user.name %>
             </a>
             <% } else { %>
+
+            <a href="/signin-qr" class="btn btn-secondary">
+              <svg
+                class="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
+                ></path>
+              </svg>
+            </a>
+
             <button type="button" class="btn btn-secondary js-signin">
               Sign in
             </button>
@@ -92,8 +113,23 @@
         </div>
       </div>
     </div>
+    <video
+      style="
+        top: 50%;
+        bottom: 0;
+        left: 50%;
+        position: fixed;
+        display: block;
+        transform: translate(-50%, -50%);
+        max-width: 100%;
+        max-height: 100vh;
+      "
+      class="hidden"
+      id="video"
+    ></video>
   </body>
 
+  <!-- Signup -->
   <script type="module">
     import { xios } from "/api.js";
     import {
@@ -103,16 +139,7 @@
 
     document
       .querySelector(".js-signup")
-      .addEventListener("click", async (e) => {
-        /*
-          {
-            ...,
-            "authenticatorSelection": {
-              ...
-              "requireResidentKey": true
-            }
-          }
-          */
+      ?.addEventListener("click", async (e) => {
         const { options } = await xios("/signup/challenge");
 
         let credential;
@@ -138,6 +165,7 @@
       });
   </script>
 
+  <!-- Signin -->
   <script type="module">
     import { xios } from "/api.js";
     import {
@@ -147,13 +175,7 @@
 
     document
       .querySelector(".js-signin")
-      .addEventListener("click", async (e) => {
-        /*
-          {
-            ...,
-            "allowCredentials": []
-          }
-          */
+      ?.addEventListener("click", async (e) => {
         const { options } = await xios("/signin/challenge");
 
         let credential;
@@ -178,5 +200,27 @@
           alert(error || "Not valid token");
         }
       });
+  </script>
+
+  <!-- QR code  -->
+  <script type="module">
+    import { xios } from "/api.js";
+    import { enableQrScanner } from "/qrcode.js";
+    const video = document.querySelector("#video");
+    const button = document.querySelector(".js-qrsignin");
+
+    button?.addEventListener("click", async () => {
+      video.classList.remove("hidden");
+      const { text } = await enableQrScanner(video);
+
+      // Some checks here
+      // Are you want?
+
+      const { success } = await xios("/qrcode-signin", { code: text });
+      if (success) {
+        video.classList.add("hidden");
+        alert("DONE!");
+      }
+    });
   </script>
 </html>
