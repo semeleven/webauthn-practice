@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PetsGramm - Sing in - Second step</title>
+    <link href="/style.css" rel="stylesheet" />
+  </head>
+  <body>
+    <div
+      class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8"
+    >
+      <div class="max-w-md w-full">
+        <div>
+          <div class="text-center">
+            <a href="/" class="text-2xl" style="font-family: 'Comic Sans MS'">
+              PetsGramm
+            </a>
+          </div>
+          <h2
+            class="mt-6 text-center text-3xl leading-9 font-extrabold text-gray-900"
+          >
+            Enter code
+          </h2>
+        </div>
+        <form class="mt-8" action="/signin-2step" method="POST">
+          <div class="rounded-md shadow-sm">
+            <div class="input-group">
+              <input
+                aria-label="Token"
+                name="token"
+                type="number"
+                required
+                class="input"
+                placeholder="Token"
+              />
+            </div>
+          </div>
+          <div class="mt-6">
+            <button type="submit" class="w-full btn btn-primary">Check</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <script type="module">
+      import { xios } from "./api.js";
+
+      document.querySelector("form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const formData = new FormData(e.target);
+
+        const { success } = await xios("/signin-2step", {
+          token: formData.get("token"),
+        });
+
+        if (success) {
+          location.href = "/";
+        } else {
+          alert("Not valid token");
+        }
+      });
+    </script>
+  </body>
+</html>
