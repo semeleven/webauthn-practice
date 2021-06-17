@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PetsGramm - Sign up</title>
+    <title>PetsGramm - Sing up</title>
     <link href="/style.css" rel="stylesheet" />
   </head>
   <body>
@@ -35,16 +35,6 @@
                 placeholder="Name"
               />
             </div>
-            <div class="input-group">
-              <input
-                aria-label="Email address"
-                name="email"
-                type="email"
-                required
-                class="input"
-                placeholder="Email address"
-              />
-            </div>
           </div>
           <div class="mt-6">
             <button type="submit" class="w-full btn btn-primary">
@@ -69,18 +59,8 @@
 
         const formData = new FormData(e.target);
 
-         /*
-          {
-            ...,
-            "authenticatorSelection": {
-              ...
-              "userVerification": "required"
-            }
-          }
-          */
         const { options } = await xios("/signup/challenge", {
           name: formData.get("name"),
-          email: formData.get("email"),
         });
 
         let credential;

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PetsGramm - Sign in</title>
+    <title>PetsGramm - Sing in</title>
     <link href="/style.css" rel="stylesheet" />
   </head>
   <body>
@@ -23,19 +23,7 @@
             Sign in to your account
           </h2>
         </div>
-        <form class="mt-8" action="/signin" method="POST">
-          <div class="rounded-md shadow-sm">
-            <div class="input-group">
-              <input
-                aria-label="Email address"
-                name="email"
-                type="email"
-                required
-                class="input"
-                placeholder="Email address"
-              />
-            </div>
-          </div>
+        <form action="/signin" method="POST">
           <div class="mt-6">
             <button type="submit" class="w-full btn btn-primary">
               Sign in
@@ -59,9 +47,7 @@
 
         const formData = new FormData(e.target);
 
-        const { options } = await xios("/signin/challenge", {
-          email: formData.get("email"),
-        });
+        const { options } = await xios("/signin/challenge");
 
         let credential;
 

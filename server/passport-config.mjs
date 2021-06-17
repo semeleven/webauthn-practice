@@ -1,15 +1,14 @@
 import Strategy from "./passport-strategy.mjs";
 
-function initialize(passport, getUserById, checkChallenge) {
+function initialize(passport, getUserById, getByCredentialID, checkChallenge) {
   const authenticateUser = async (
-    userId,
     optionsForCheck,
     expectedChallenge,
     done
   ) => {
-    const user = getUserById(userId);
+    const user = getByCredentialID(optionsForCheck.id);
     if (user == null) {
-      return done(null, false, { message: "No user with that email" });
+      return done(null, false, { message: "No user with that key" });
     }
 
     try {
