@@ -3,13 +3,22 @@ import compression from "compression";
 import { urlAlphabet, customAlphabet } from "nanoid";
 import passport from "passport";
 import session from "express-session";
-import { authenticator } from "otplib";
-import qrcode from "qrcode";
+import {
+  generateAuthenticationOptions,
+  verifyAuthenticationResponse,
+  generateRegistrationOptions,
+  verifyRegistrationResponse,
+} from "@simplewebauthn/server";
+import base64url from "base64url";
 
 import { Users } from "./db/users.mjs";
 import initializePassport from "./passport-config.mjs";
 
 const nanoid = customAlphabet(urlAlphabet, 25);
+
+const rpName = "Petsgramm";
+const rpID = process.env.HOST_NAME;
+const origin = `https://${rpID}`;
 
 const users = new Users();
 
@@ -46,7 +55,7 @@ app.get("/", (req, res) => {
 });
 
 app.get("/profile", checkAuthenticated, (req, res) => {
-  res.render("profile.ejs");
+  res.render("profile.ejs", { user: req.user });
 });
 
 app.get("/signin", checkNotAuthenticated, (req, res) => {
@@ -70,52 +79,110 @@ app.get("/signin-2step", checkAuthenticated, (req, res) => {
 });
 
 app.get("/signup-2step", checkAuthenticated, async (req, res) => {
-  const user = req.user.name;
-  if (!req.session.otp) {
-    req.session.otp = authenticator.generateSecret();
-  }
-  const secret = req.session.otp;
-  const service = "Petsgramm";
-
-  const otpauth = authenticator.keyuri(user, service, secret);
-
-  const qr = await qrcode.toString(otpauth, { type: "svg" });
-
-  res.render("signup-2step.ejs", { qr, secret, url: otpauth });
+  res.render("add-key.ejs");
 });
 
-app.post("/signup-2step", checkAuthenticated, (req, res) => {
-  const secret = req.session.otp;
-  const { token } = req.body;
+app.get("/add-key", checkAuthenticated, async (req, res) => {
+  res.render("add-key.ejs");
+});
+
+app.post("/add-key/challenge", checkAuthenticated, (req, res) => {
+  const user = req.user;
+
+  const options = generateRegistrationOptions({
+    rpName,
+    rpID,
+    userID: user.webAuthnId,
+    userName: user.name,
+    userID: user.id,
+    attestationType: "none",
+    excludeCredentials: user.devices.map((dev) => ({
+      id: dev.credentialID,
+      type: "public-key",
+    })),
+  });
+
+  // Save challenge
+  req.session.challenge = options.challenge;
+
+  res.json({ options });
+});
+
+app.post("/add-key/verify", checkAuthenticated, async (req, res) => {
+  const user = req.user;
+  const expectedChallenge = req.session.challenge;
 
   try {
-    const isValid = authenticator.check(token, secret);
-
-    users.setOtpSecret(req.user.id, secret);
-
-    res.json({
-      success: isValid,
+    const verification = await verifyRegistrationResponse({
+      credential: req.body.options,
+      expectedChallenge,
+      expectedOrigin: origin,
+      expectedRPID: rpID,
     });
+
+    const { verified, registrationInfo } = verification;
+
+    const { credentialPublicKey, credentialID, counter } = registrationInfo;
+
+    const newAuthenticator = {
+      name: req.body.nick,
+      credentialID,
+      credentialPublicKey,
+      counter,
+    };
+
+    users.addDevice(user.id, newAuthenticator);
+
+    res.json({ success: verified });
   } catch (error) {
-    res.json({
-      error: error.message,
-    });
+    res.json({ error: error.message });
   }
 });
 
-app.post("/signin-2step", checkAuthenticated, (req, res) => {
-  const secret = req.user.otpSecret;
-  const { token } = req.body;
+app.post("/key/challenge", checkAuthenticated, (req, res) => {
+  const user = req.user;
+
+  const options = generateAuthenticationOptions({
+    allowCredentials: user.devices.map((dev) => ({
+      id: dev.credentialID,
+      type: "public-key",
+    })),
+    userVerification: "preferred",
+  });
+
+  req.session.challenge = options.challenge;
+
+  res.json({ options });
+});
+
+app.post("/key/verify", checkAuthenticated, async (req, res) => {
+  const user = req.user;
+  const expectedChallenge = req.session.challenge;
 
   try {
-    const isValid = authenticator.check(token, secret);
-    res.json({
-      success: isValid,
+    const bodyCredIDBuffer = base64url.toBuffer(req.body.id);
+
+    const authenticator = user.devices.find((device) =>
+      device.credentialID.equals(bodyCredIDBuffer)
+    );
+
+    if (!authenticator) {
+      throw new Error(`Could not find authenticator`);
+    }
+
+    const verification = await verifyAuthenticationResponse({
+      credential: req.body,
+      expectedChallenge,
+      expectedOrigin: origin,
+      expectedRPID: rpID,
+      authenticator,
     });
+
+    const { verified } = verification;
+
+    res.json({ success: verified });
   } catch (error) {
-    res.json({
-      error,
-    });
+    res.json({ error: error.message });
   }
 });
 

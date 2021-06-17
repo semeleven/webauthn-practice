@@ -11,6 +11,9 @@ export class Users {
   constructor() {
     this.db = new Map();
   }
+  addDevice(id, device) {
+    this.getById(id).devices.push(device);
+  }
   async setNewPassword(id, newPassword) {
     this.getById(id).password = await this.hashPassword(newPassword);
   }
@@ -28,7 +31,7 @@ export class Users {
 
     const hashedPassword = await this.hashPassword(user.password);
 
-    const newUser = { ...user, id, password: hashedPassword };
+    const newUser = { ...user, id, password: hashedPassword, devices: [] };
     this.db.set(id, newUser);
 
     return newUser;
