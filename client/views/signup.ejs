@@ -45,17 +45,6 @@
                 placeholder="Email address"
               />
             </div>
-            <div class="input-group">
-              <input
-                aria-label="Password"
-                name="password"
-                type="text"
-                required
-                aria-autocomplete="list"
-                class="input"
-                placeholder="Password"
-              />
-            </div>
           </div>
           <div class="mt-6">
             <button type="submit" class="w-full btn btn-primary">
@@ -70,22 +59,49 @@
     </div>
     <script type="module">
       import { xios } from "/api.js";
+      import {
+        convertCreateCredential,
+        convertCreateOptions,
+      } from "/webauthn-helpers.js";
 
       document.querySelector("form").addEventListener("submit", async (e) => {
         e.preventDefault();
 
         const formData = new FormData(e.target);
 
-        const { success, error } = await xios("/signup", {
+         /*
+          {
+            ...,
+            "authenticatorSelection": {
+              ...
+              "userVerification": "required"
+            }
+          }
+          */
+        const { options } = await xios("/signup/challenge", {
           name: formData.get("name"),
           email: formData.get("email"),
-          password: formData.get("password"),
+        });
+
+        let credential;
+        try {
+          credential = await navigator.credentials.create({
+            publicKey: convertCreateOptions(options),
+          });
+        } catch (e) {
+          alert("navigator.credentials.create error: " + e.message);
+          return;
+        }
+
+        const { success, error } = await xios("/signup", {
+          options: convertCreateCredential(credential),
+          nick: new Date().toString(),
         });
 
         if (success) {
           location.href = "/";
         } else {
-          alert(error);
+          alert(error || "Something wrong");
         }
       });
     </script>

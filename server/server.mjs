@@ -24,8 +24,29 @@ const users = new Users();
 
 initializePassport(
   passport,
-  (email) => users.getByEmail(email),
-  (id) => users.getById(id)
+  (id) => users.getById(id),
+  async (user, options, expectedChallenge) => {
+    const bodyCredIDBuffer = base64url.toBuffer(options.id);
+    const authenticator = user.devices.find((device) =>
+      device.credentialID.equals(bodyCredIDBuffer)
+    );
+
+    if (!authenticator) {
+      throw new Error(`Could not find authenticator`);
+    }
+
+    const verification = await verifyAuthenticationResponse({
+      credential: options,
+      expectedChallenge,
+      expectedOrigin: origin,
+      expectedRPID: rpID,
+      authenticator,
+    });
+
+    const { verified } = verification;
+
+    return verified;
+  }
 );
 
 const app = express();
@@ -53,7 +74,6 @@ app.use(passport.session());
 app.get("/", (req, res) => {
   res.render("index.ejs", {
     user: req.user,
-    canAskWebAuth: !req.session.authenticator && !!req.user,
   });
 });
 
@@ -74,48 +94,25 @@ app.get("/signup", checkNotAuthenticated, (req, res) => {
   res.render("signup.ejs");
 });
 
-app.get("/forgot-password", checkNotAuthenticated, (req, res) => {
-  res.render("forgot-password.ejs");
-});
-
-app.get("/new-password", checkNotAuthenticated, (req, res) => {
-  res.render("new-password.ejs");
-});
-
-app.get("/signin-2step", checkAuthenticated, (req, res) => {
-  res.render("signin-2step.ejs");
-});
-
-app.get("/signup-2step", checkAuthenticated, async (req, res) => {
-  res.render("add-key.ejs");
-});
-
 app.get("/add-key", checkAuthenticated, async (req, res) => {
   res.render("add-key.ejs");
 });
 
-app.post("/add-key/challenge", checkAuthenticated, (req, res) => {
+app.post("/add-key/challenge", (req, res) => {
   const user = req.user;
 
   const optionsForOptions = {
     rpName,
     rpID,
-    userID: user.webAuthnId,
     userName: user.name,
     userID: user.id,
     attestationType: "none",
   };
 
-  if (req.body.resign) {
-    optionsForOptions.authenticatorSelection = {
-      authenticatorAttachment: "platform",
-    };
-  } else {
-    optionsForOptions.excludeCredentials = user.devices.map((dev) => ({
-      id: dev.credentialID,
-      type: "public-key",
-    }));
-  }
+  optionsForOptions.excludeCredentials = user.devices.map((dev) => ({
+    id: dev.credentialID,
+    type: "public-key",
+  }));
 
   const options = generateRegistrationOptions(optionsForOptions);
 
@@ -135,7 +132,7 @@ app.post("/add-key/verify", checkAuthenticated, async (req, res) => {
       expectedChallenge,
       expectedOrigin: origin,
       expectedRPID: rpID,
-      requireUserVerification: Boolean(req.body.resign),
+      requireUserVerification: true,
     });
 
     const { verified, registrationInfo } = verification;
@@ -149,11 +146,7 @@ app.post("/add-key/verify", checkAuthenticated, async (req, res) => {
       counter,
     };
 
-    if (req.body.resign) {
-      req.session.authenticator = newAuthenticator;
-    } else {
-      users.addDevice(user.id, newAuthenticator);
-    }
+    users.addDevice(user.id, newAuthenticator);
 
     res.json({ success: verified });
   } catch (error) {
@@ -164,22 +157,14 @@ app.post("/add-key/verify", checkAuthenticated, async (req, res) => {
 app.post("/key/challenge", checkAuthenticated, (req, res) => {
   const user = req.user;
 
-  const allowCredentials = req.session.authenticator
-    ? [
-        {
-          id: req.session.authenticator.credentialID,
-          type: "public-key",
-          transports: ["internal"],
-        },
-      ]
-    : user.devices.map((dev) => ({
-        id: dev.credentialID,
-        type: "public-key",
-      }));
+  const allowCredentials = user.devices.map((dev) => ({
+    id: dev.credentialID,
+    type: "public-key",
+  }));
 
   const options = generateAuthenticationOptions({
     allowCredentials,
-    userVerification: "preferred",
+    userVerification: "required",
   });
 
   req.session.challenge = options.challenge;
@@ -193,20 +178,9 @@ app.post("/key/verify", checkAuthenticated, async (req, res) => {
 
   try {
     const bodyCredIDBuffer = base64url.toBuffer(req.body.id);
-
-    const authenticators = [
-      ...user.devices,
-    ];
-    if (req.session.authenticator) {
-      authenticators.push({
-        ...req.session.authenticator,
-        credentialID: Buffer.from(req.session.authenticator.credentialID),
-        credentialPublicKey: Buffer.from(req.session.authenticator.credentialPublicKey),
-      })
-    }
-  
-
-    const authenticator = authenticators.find((device) => device.credentialID.equals(bodyCredIDBuffer));
+    const authenticator = user.devices.find((device) =>
+      device.credentialID.equals(bodyCredIDBuffer)
+    );
 
     if (!authenticator) {
       throw new Error(`Could not find authenticator`);
@@ -232,33 +206,84 @@ app.post("/key/verify", checkAuthenticated, async (req, res) => {
   }
 });
 
-const magicLinks = [];
-app.post("/forgot-password", checkNotAuthenticated, (req, res) => {
-  const { email } = req.body;
+// Passwordless
+app.post("/signup/challenge", checkNotAuthenticated, (req, res) => {
+  const { email, name } = req.body;
 
-  const magic = {
-    id: nanoid(),
-    userId: users.getByEmail(email)?.id,
+  const user = users.createUser({ name, email });
+  const optionsForOptions = {
+    rpName,
+    rpID,
+    userName: user.name,
+    userID: user.id,
+    attestationType: "none",
   };
-  magicLinks.push(magic);
 
-  res.json({ link: "/new-password?magic=" + magic.id });
+  const options = generateRegistrationOptions(optionsForOptions);
+
+  req.session.challenge = options.challenge;
+  req.session.user = user;
+
+  res.json({ options });
 });
 
-app.post("/new-password", checkNotAuthenticated, async (req, res) => {
-  const { password } = req.body;
-  const id = req.headers.referer.split("?magic=")[1];
-  const link = magicLinks.find((link) => link.id === id);
+app.post("/signup", checkNotAuthenticated, async (req, res) => {
+  const user = req.session.user;
+  const expectedChallenge = req.session.challenge;
 
-  await users.setNewPassword(link.userId, password);
+  try {
+    const verification = await verifyRegistrationResponse({
+      credential: req.body.options,
+      expectedChallenge,
+      expectedOrigin: origin,
+      expectedRPID: rpID,
+      requireUserVerification: true,
+    });
 
-  const user = users.getById(link.userId);
+    const { verified, registrationInfo } = verification;
 
-  await login(req, user);
+    const { credentialPublicKey, credentialID, counter } = registrationInfo;
 
-  res.json({
-    success: true,
+    const newAuthenticator = {
+      name: req.body.nick,
+      credentialID,
+      credentialPublicKey,
+      counter,
+    };
+
+    if (!verified) {
+      return res.json({ success: false, error: "Key not verified" });
+    }
+
+    users.add(user);
+    users.addDevice(user.id, newAuthenticator);
+
+    await login(req, user);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.log(error);
+    res.json({ error: error.message });
+  }
+});
+
+app.post("/signin/challenge", checkNotAuthenticated, (req, res) => {
+  const user = users.getByEmail(req.body.email);
+
+  const allowCredentials = user.devices.map((dev) => ({
+    id: dev.credentialID,
+    type: "public-key",
+  }));
+
+  const options = generateAuthenticationOptions({
+    allowCredentials,
+    userVerification: "required",
   });
+
+  req.session.challenge = options.challenge;
+  req.session.userId = user.id;
+
+  res.json({ options });
 });
 
 app.post("/signin", checkNotAuthenticated, function (req, res, next) {
@@ -276,24 +301,6 @@ app.post("/signin", checkNotAuthenticated, function (req, res, next) {
       return res.json({ success: true });
     });
   })(req, res, next);
-});
-
-app.post("/signup", checkNotAuthenticated, async (req, res) => {
-  const { password, name, email } = req.body;
-  try {
-    const user = await users.add({ password, name, email });
-
-    await login(req, user);
-
-    return res.json({
-      success: true,
-    });
-  } catch (e) {
-    return res.json({
-      success: false,
-      error: e.message,
-    });
-  }
 });
 
 app.post("/logout", (req, res) => {
