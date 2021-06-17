@@ -3,6 +3,8 @@ import compression from "compression";
 import { urlAlphabet, customAlphabet } from "nanoid";
 import passport from "passport";
 import session from "express-session";
+import { authenticator } from "otplib";
+import qrcode from "qrcode";
 
 import { Users } from "./db/users.mjs";
 import initializePassport from "./passport-config.mjs";
@@ -61,6 +63,60 @@ app.get("/forgot-password", checkNotAuthenticated, (req, res) => {
 
 app.get("/new-password", checkNotAuthenticated, (req, res) => {
   res.render("new-password.ejs");
+});
+
+app.get("/signin-2step", checkAuthenticated, (req, res) => {
+  res.render("signin-2step.ejs");
+});
+
+app.get("/signup-2step", checkAuthenticated, async (req, res) => {
+  const user = req.user.name;
+  if (!req.session.otp) {
+    req.session.otp = authenticator.generateSecret();
+  }
+  const secret = req.session.otp;
+  const service = "Petsgramm";
+
+  const otpauth = authenticator.keyuri(user, service, secret);
+
+  const qr = await qrcode.toString(otpauth, { type: "svg" });
+
+  res.render("signup-2step.ejs", { qr, secret, url: otpauth });
+});
+
+app.post("/signup-2step", checkAuthenticated, (req, res) => {
+  const secret = req.session.otp;
+  const { token } = req.body;
+
+  try {
+    const isValid = authenticator.check(token, secret);
+
+    users.setOtpSecret(req.user.id, secret);
+
+    res.json({
+      success: isValid,
+    });
+  } catch (error) {
+    res.json({
+      error: error.message,
+    });
+  }
+});
+
+app.post("/signin-2step", checkAuthenticated, (req, res) => {
+  const secret = req.user.otpSecret;
+  const { token } = req.body;
+
+  try {
+    const isValid = authenticator.check(token, secret);
+    res.json({
+      success: isValid,
+    });
+  } catch (error) {
+    res.json({
+      error,
+    });
+  }
 });
 
 const magicLinks = [];

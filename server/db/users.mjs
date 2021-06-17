@@ -14,6 +14,9 @@ export class Users {
   async setNewPassword(id, newPassword) {
     this.getById(id).password = await this.hashPassword(newPassword);
   }
+  async setOtpSecret(id, secret) {
+    this.getById(id).otpSecret = secret;
+  }
   async hashPassword(password) {
     return await bcrypt.hash(password, 10);
   }
