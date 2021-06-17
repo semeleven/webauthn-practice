@@ -51,11 +51,19 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 app.get("/", (req, res) => {
-  res.render("index.ejs", { user: req.user });
+  res.render("index.ejs", {
+    user: req.user,
+    canAskWebAuth: !req.session.authenticator && !!req.user,
+  });
 });
 
 app.get("/profile", checkAuthenticated, (req, res) => {
-  res.render("profile.ejs", { user: req.user });
+  res.render("profile.ejs", { user: req.user, later: req.session.later });
+});
+
+app.get("/later", checkAuthenticated, (req, res) => {
+  req.session.later = true;
+  res.render("later.ejs");
 });
 
 app.get("/signin", checkNotAuthenticated, (req, res) => {
@@ -89,18 +97,27 @@ app.get("/add-key", checkAuthenticated, async (req, res) => {
 app.post("/add-key/challenge", checkAuthenticated, (req, res) => {
   const user = req.user;
 
-  const options = generateRegistrationOptions({
+  const optionsForOptions = {
     rpName,
     rpID,
     userID: user.webAuthnId,
     userName: user.name,
     userID: user.id,
     attestationType: "none",
-    excludeCredentials: user.devices.map((dev) => ({
+  };
+
+  if (req.body.resign) {
+    optionsForOptions.authenticatorSelection = {
+      authenticatorAttachment: "platform",
+    };
+  } else {
+    optionsForOptions.excludeCredentials = user.devices.map((dev) => ({
       id: dev.credentialID,
       type: "public-key",
-    })),
-  });
+    }));
+  }
+
+  const options = generateRegistrationOptions(optionsForOptions);
 
   // Save challenge
   req.session.challenge = options.challenge;
@@ -118,6 +135,7 @@ app.post("/add-key/verify", checkAuthenticated, async (req, res) => {
       expectedChallenge,
       expectedOrigin: origin,
       expectedRPID: rpID,
+      requireUserVerification: Boolean(req.body.resign),
     });
 
     const { verified, registrationInfo } = verification;
@@ -131,7 +149,11 @@ app.post("/add-key/verify", checkAuthenticated, async (req, res) => {
       counter,
     };
 
-    users.addDevice(user.id, newAuthenticator);
+    if (req.body.resign) {
+      req.session.authenticator = newAuthenticator;
+    } else {
+      users.addDevice(user.id, newAuthenticator);
+    }
 
     res.json({ success: verified });
   } catch (error) {
@@ -142,11 +164,21 @@ app.post("/add-key/verify", checkAuthenticated, async (req, res) => {
 app.post("/key/challenge", checkAuthenticated, (req, res) => {
   const user = req.user;
 
+  const allowCredentials = req.session.authenticator
+    ? [
+        {
+          id: req.session.authenticator.credentialID,
+          type: "public-key",
+          transports: ["internal"],
+        },
+      ]
+    : user.devices.map((dev) => ({
+        id: dev.credentialID,
+        type: "public-key",
+      }));
+
   const options = generateAuthenticationOptions({
-    allowCredentials: user.devices.map((dev) => ({
-      id: dev.credentialID,
-      type: "public-key",
-    })),
+    allowCredentials,
     userVerification: "preferred",
   });
 
@@ -162,9 +194,19 @@ app.post("/key/verify", checkAuthenticated, async (req, res) => {
   try {
     const bodyCredIDBuffer = base64url.toBuffer(req.body.id);
 
-    const authenticator = user.devices.find((device) =>
-      device.credentialID.equals(bodyCredIDBuffer)
-    );
+    const authenticators = [
+      ...user.devices,
+    ];
+    if (req.session.authenticator) {
+      authenticators.push({
+        ...req.session.authenticator,
+        credentialID: Buffer.from(req.session.authenticator.credentialID),
+        credentialPublicKey: Buffer.from(req.session.authenticator.credentialPublicKey),
+      })
+    }
+  
+
+    const authenticator = authenticators.find((device) => device.credentialID.equals(bodyCredIDBuffer));
 
     if (!authenticator) {
       throw new Error(`Could not find authenticator`);
@@ -179,6 +221,10 @@ app.post("/key/verify", checkAuthenticated, async (req, res) => {
     });
 
     const { verified } = verification;
+
+    if (verified) {
+      req.session.later = false;
+    }
 
     res.json({ success: verified });
   } catch (error) {

@@ -8,6 +8,11 @@
   </head>
   <body>
     <div class="bg-white max-w-screen-lg mx-auto pt-10">
+      <% if (later) { %>
+      <button type="button" class="w-full btn btn-secondary mb-5 js-verify">
+        Resign in
+      </button>
+      <% } else { %>
       <div>
         <h3 class="text-lg font-medium leading-6 text-gray-900 mt-8">Keys</h3>
         <ul
@@ -27,7 +32,7 @@
           <% }); %>
         </ul>
         <a href="/add-key" class="w-full btn btn-primary mb-5">Add new</a>
-
+        <a href="/later" class="w-full btn btn-primary mb-5">To the future</a>
         <button
           type="button"
           class="w-full btn btn-secondary mb-5 js-very-secure-action"
@@ -39,6 +44,7 @@
           <button class="w-full btn btn-secondary">Log Out</button>
         </form>
       </div>
+      <% }%>
     </div>
     <script type="module">
       import { xios } from "./api.js";
@@ -48,8 +54,36 @@
       } from "./webauthn-helpers.js";
 
       document
+        .querySelector(".js-verify")
+        ?.addEventListener("click", async () => {
+          const { options } = await xios("/key/challenge");
+
+          let credential;
+
+          try {
+            credential = await navigator.credentials.get({
+              publicKey: convertGetOptions(options),
+            });
+          } catch (e) {
+            alert("navigator.credentials.get error: " + e.message);
+            return;
+          }
+
+          const { success, error } = await xios(
+            "/key/verify",
+            convertGetCredential(credential)
+          );
+
+          if (success) {
+            location.reload();
+          } else {
+            alert(error || "Not valid token");
+          }
+        });
+
+      document
         .querySelector(".js-very-secure-action")
-        .addEventListener("click", async () => {
+        ?.addEventListener("click", async () => {
           const { options } = await xios("/key/challenge");
 
           let credential;
