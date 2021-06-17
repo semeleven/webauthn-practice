@@ -20,44 +20,70 @@
           <h2
             class="mt-6 text-center text-3xl leading-9 font-extrabold text-gray-900"
           >
-            Enter code
+            Sing in - Second step
           </h2>
         </div>
-        <form class="mt-8" action="/signin-2step" method="POST">
-          <div class="rounded-md shadow-sm">
-            <div class="input-group">
-              <input
-                aria-label="Token"
-                name="token"
-                type="number"
-                required
-                class="input"
-                placeholder="Token"
-              />
-            </div>
-          </div>
-          <div class="mt-6">
-            <button type="submit" class="w-full btn btn-primary">Check</button>
-          </div>
-        </form>
+        <div class="mt-6">
+          <button type="submit" class="w-full btn btn-primary">Verify</button>
+        </div>
       </div>
     </div>
     <script type="module">
       import { xios } from "./api.js";
+      import {
+        convertGetOptions,
+        convertGetCredential,
+      } from "./webauthn-helpers.js";
 
-      document.querySelector("form").addEventListener("submit", async (e) => {
-        e.preventDefault();
+      document.querySelector("button").addEventListener("click", async () => {
+        /*
+        {
+          "challenge": ArrayBuffer,
+          "allowCredentials": [
+            {
+              "id": ArrayBuffer,
+              "type": "public-key"
+            }
+          ],
+          "timeout": 60000,
+          "userVerification": "discouraged" | "preferred" | "required"
+        }
+        */
+        const { options } = await xios("/key/challenge");
 
-        const formData = new FormData(e.target);
+        let credential;
 
-        const { success } = await xios("/signin-2step", {
-          token: formData.get("token"),
-        });
+        try {
+          /*
+          {
+            id: String
+            rawId: ArrayBuffer
+            response: {
+              authenticatorData: ArrayBuffer
+              clientDataJSON: ArrayBuffer
+              signature: ArrayBuffer or empty string
+              userHandle: ArrayBuffer or null
+              type: "public-key"
+            }
+          }
+          */
+          credential = await navigator.credentials.get({
+            publicKey: convertGetOptions(options),
+          });
+        } catch (e) {
+          alert("navigator.credentials.get error: " + e.message);
+          return;
+        }
+
+        const { success, error } = await xios(
+          "/key/verify",
+          convertGetCredential(credential)
+        );
 
         if (success) {
           location.href = "/";
         } else {
-          alert("Not valid token");
+          alert(error || "Not valid token");
         }
       });
     </script>

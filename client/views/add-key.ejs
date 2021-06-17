@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PetsGramm - Sing in - Second step</title>
+    <link href="/style.css" rel="stylesheet" />
+  </head>
+  <body>
+    <div
+      class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8"
+    >
+      <div class="max-w-md w-full">
+        <div>
+          <div class="text-center">
+            <a href="/" class="text-2xl" style="font-family: 'Comic Sans MS'">
+              PetsGramm
+            </a>
+          </div>
+          <h2
+            class="mt-6 text-center text-3xl leading-9 font-extrabold text-gray-900"
+          >
+            Add security key
+          </h2>
+        </div>
+        <form class="mt-2" action="/signup" method="POST">
+          <div class="rounded-md shadow-sm">
+            <div class="input-group">
+              <input
+                aria-label="Security key nick"
+                name="nick"
+                type="text"
+                required
+                class="input"
+                placeholder="Security key nick"
+              />
+            </div>
+          </div>
+          <div class="mt-6">
+            <button type="submit" class="w-full btn btn-primary">Check</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <script type="module">
+      import { xios } from "/api.js";
+      import {
+        convertCreateCredential,
+        convertCreateOptions,
+      } from "/webauthn-helpers.js";
+
+      document.querySelector("form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const formData = new FormData(e.target);
+
+        /*
+          {
+            "challenge": ArrayBuffer,
+            "rp": {
+              "name": "Petsgramm",
+              "id": "8ccec5916742.ngrok.io",
+              ...
+            },
+            "user": {
+              "id": ArrayBuffer,
+              "name": "Sam"
+              ...
+            },
+            "pubKeyCredParams": [
+              {
+                "alg": -7,
+                "type": "public-key"
+              },
+              ...
+            ],
+            "attestation": "none" | "indirect" | "direct",
+            "excludeCredentials": [
+              {
+                "id": ArrayBuffer,
+                "type": "public-key"
+              }
+            ],
+            "authenticatorSelection": {
+              "userVerification": "discouraged" | "preferred" | "required",
+              "requireResidentKey": Boolean,
+              "authenticatorAttachment": "platform" | "cross-platform"
+            }
+        }
+        */
+        // Server: "Please create credentials"
+        const { options } = await xios("/add-key/challenge");
+
+        let credential;
+        try {
+          /*
+          {
+            id: String
+            rawId: ArrayBuffer
+            response: {
+              attestationObject: ArrayBuffer (CBOR)
+              clientDataJSON: ArrayBuffer
+              signature: ArrayBuffer or empty string
+              userHandle: ArrayBuffer or null
+              type: "public-key"
+            }
+          }
+          */
+          // Browser: "Authenticator, public key please?"
+          // Authenticator: "Sure, here you go."
+          credential = await navigator.credentials.create({
+            publicKey: convertCreateOptions(options),
+          });
+        } catch (e) {
+          alert("navigator.credentials.create error: " + e.message);
+          return;
+        }
+
+        // Browser: "Here, server, public key + signature"
+        // Server verifies & stores the public key
+        const { success, error } = await xios("/add-key/verify", {
+          options: convertCreateCredential(credential),
+          nick: formData.get("nick"),
+        });
+
+        if (success) {
+          location.href = location.pathname.startsWith("/add-key")
+            ? "/profile"
+            : "/";
+        } else {
+          alert(error || "Something wrong");
+        }
+      });
+    </script>
+  </body>
+</html>

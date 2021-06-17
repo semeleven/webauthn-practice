@@ -9,24 +9,71 @@
   <body>
     <div class="bg-white max-w-screen-lg mx-auto pt-10">
       <div>
-        <div class="md:grid md:grid-cols-3 md:gap-6">
-          <div class="md:col-span-1">
-            <div class="px-4 sm:px-0">
-              <h3 class="text-lg font-medium leading-6 text-gray-900">
-                Log out
-              </h3>
-              <p class="mt-1 text-sm leading-5 text-gray-600">
-                Some smart text
-              </p>
+        <h3 class="text-lg font-medium leading-6 text-gray-900 mt-8">Keys</h3>
+        <ul
+          class="border border-gray-200 rounded-md divide-y divide-gray-200 my-3"
+        >
+          <% user.devices.forEach(function(device){ %>
+          <li class="pl-3 pr-4 py-3 flex items-center justify-between text-sm">
+            <div class="w-0 flex-1 flex items-center">
+              <span class="ml-2 flex-1 w-0 truncate"><%= device.name %></span>
             </div>
-          </div>
-          <div class="mt-5 md:mt-0 md:col-span-2">
-            <form action="/logout" method="POST">
-              <button class="w-full btn btn-primary">Log Out</button>
-            </form>
-          </div>
-        </div>
+            <div class="w-0 flex-1 flex items-center">
+              <span class="ml-2 flex-1 w-0 truncate"
+                >Counter: <%= device.counter %></span
+              >
+            </div>
+          </li>
+          <% }); %>
+        </ul>
+        <a href="/add-key" class="w-full btn btn-primary mb-5">Add new</a>
+
+        <button
+          type="button"
+          class="w-full btn btn-secondary mb-5 js-very-secure-action"
+        >
+          Some very secure action
+        </button>
+
+        <form action="/logout" method="POST">
+          <button class="w-full btn btn-secondary">Log Out</button>
+        </form>
       </div>
     </div>
+    <script type="module">
+      import { xios } from "./api.js";
+      import {
+        convertGetOptions,
+        convertGetCredential,
+      } from "./webauthn-helpers.js";
+
+      document
+        .querySelector(".js-very-secure-action")
+        .addEventListener("click", async () => {
+          const { options } = await xios("/key/challenge");
+
+          let credential;
+
+          try {
+            credential = await navigator.credentials.get({
+              publicKey: convertGetOptions(options),
+            });
+          } catch (e) {
+            alert("navigator.credentials.get error: " + e.message);
+            return;
+          }
+
+          const { success, error } = await xios(
+            "/key/verify",
+            convertGetCredential(credential)
+          );
+
+          if (success) {
+            alert("DONE!");
+          } else {
+            alert(error || "Not valid token");
+          }
+        });
+    </script>
   </body>
 </html>
