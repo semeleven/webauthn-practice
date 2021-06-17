@@ -1,4 +1,3 @@
-import bcrypt from "bcrypt";
 import { customAlphabet } from "nanoid";
 
 // Safe for ArrayBuffer/base64 converting
@@ -14,25 +13,18 @@ export class Users {
   addDevice(id, device) {
     this.getById(id).devices.push(device);
   }
-  async setNewPassword(id, newPassword) {
-    this.getById(id).password = await this.hashPassword(newPassword);
-  }
-  async setOtpSecret(id, secret) {
-    this.getById(id).otpSecret = secret;
-  }
-  async hashPassword(password) {
-    return await bcrypt.hash(password, 10);
-  }
   createUserId() {
     return nanoid();
   }
-  async add(user) {
+  createUser(user) {
     const id = this.createUserId();
 
-    const hashedPassword = await this.hashPassword(user.password);
+    return { ...user, id, devices: [] };
+  }
+  add(user) {
+    const newUser = user.id ? user : this.createUser(user);
 
-    const newUser = { ...user, id, password: hashedPassword, devices: [] };
-    this.db.set(id, newUser);
+    this.db.set(newUser.id, newUser);
 
     return newUser;
   }

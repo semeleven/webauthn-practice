@@ -35,26 +35,6 @@
                 placeholder="Email address"
               />
             </div>
-            <div class="input-group">
-              <input
-                aria-label="Password"
-                name="password"
-                type="password"
-                required
-                class="input"
-                placeholder="Password"
-              />
-            </div>
-          </div>
-          <div class="mt-6 flex justify-end">
-            <div class="text-sm leading-5">
-              <a
-                href="/forgot-password"
-                class="font-medium text-indigo-600 hover:text-indigo-500 focus:outline-none focus:underline transition ease-in-out duration-150"
-              >
-                Forgot your password?
-              </a>
-            </div>
           </div>
           <div class="mt-6">
             <button type="submit" class="w-full btn btn-primary">
@@ -69,21 +49,40 @@
     </div>
     <script type="module">
       import { xios } from "/api.js";
+      import {
+        convertGetOptions,
+        convertGetCredential,
+      } from "./webauthn-helpers.js";
 
       document.querySelector("form").addEventListener("submit", async (e) => {
         e.preventDefault();
 
         const formData = new FormData(e.target);
 
-        const { success, error } = await xios("/signin", {
+        const { options } = await xios("/signin/challenge", {
           email: formData.get("email"),
-          password: formData.get("password"),
         });
+
+        let credential;
+
+        try {
+          credential = await navigator.credentials.get({
+            publicKey: convertGetOptions(options),
+          });
+        } catch (e) {
+          alert("navigator.credentials.get error: " + e.message);
+          return;
+        }
+
+        const { success, error } = await xios(
+          "/signin",
+          convertGetCredential(credential)
+        );
 
         if (success) {
           location.href = "/";
         } else {
-          alert(error);
+          alert(error || "Not valid token");
         }
       });
     </script>
